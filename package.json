@@ -1,0 +1,16 @@
+{
+  "name": "cn.com.zerogame.unitypackages.collections",
+  "displayName": "ZGUP Collections",
+  "version": "2.2.1",
+  "unity": "2022.2",
+  "unityRelease": "0f1",
+  "dependencies": {
+	  "com.unity.collections": "2.1.0-pre.11", 
+	  "cn.com.zerogame.unitypackages": "2.2.1"
+  },
+  "description": "Zero Game Unity Package Collections",
+  "keywords": [
+    "zg", 
+	"collections"
+  ]
+}
