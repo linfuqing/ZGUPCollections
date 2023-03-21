@@ -1,0 +1,14 @@
+{
+  "scopedRegistries": [{
+    "name": "ZGUP Collections",
+    "url": "https://zerogame.com.cn",
+    "scopes": [
+      "com.zerogame"
+    ]
+  }],
+  "dependencies": {
+    "com.unity.collections": "2.1.0-pre.11",
+    "cn.com.zerogame.unitypackages": "https://github.com/linfuqing/ZGUP.git"
+  },
+  "resolutionStrategy": "highestMinor"
+}
