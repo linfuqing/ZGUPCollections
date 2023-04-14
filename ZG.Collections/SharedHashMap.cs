@@ -168,7 +168,7 @@ namespace ZG
 
                 set
                 {
-                    CheckWrite();
+                    __CheckWrite();
 
                     __values.Capacity = value;
                 }
@@ -187,7 +187,7 @@ namespace ZG
 
                 set
                 {
-                    CheckWrite();
+                    __CheckWrite();
 
                     __values[key] = value;
                 }
@@ -246,21 +246,21 @@ namespace ZG
 
             public bool TryAdd(in TKey key, in TValue value)
             {
-                CheckWrite();
+                __CheckWrite();
 
                 return __values.TryAdd(key, value);
             }
 
             public void Add(in TKey key, in TValue value)
             {
-                CheckWrite();
+                __CheckWrite();
 
                 __values.Add(key, value);
             }
 
             public bool Remove(in TKey key)
             {
-                CheckWrite();
+                __CheckWrite();
 
                 /*if (!__values.TryGetValue(handle, out var value))
                     return false;
@@ -272,7 +272,7 @@ namespace ZG
 
             public void Clear()
             {
-                CheckWrite();
+                __CheckWrite();
 
                 __values.Clear();
             }
@@ -302,7 +302,7 @@ namespace ZG
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            void CheckWrite()
+            private void __CheckWrite()
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);

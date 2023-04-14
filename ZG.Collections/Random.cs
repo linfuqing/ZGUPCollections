@@ -4,7 +4,7 @@ using Random = Unity.Mathematics.Random;
 
 namespace ZG
 {
-    public enum RandomItemType
+    public enum RandomResult
     {
         Fail,
         Success, 
@@ -38,13 +38,15 @@ namespace ZG
 
     public interface IRandomItemHandler
     {
-        RandomItemType Set(int startIndex, int count);
+        RandomResult Set(int startIndex, int count);
     }
     
     public static class RandomUtility
     {
-        public static bool Next<T>(ref this Random random, ref T itemHandler, in NativeSlice<RandomGroup> groups) where T : struct, IRandomItemHandler
+        public static RandomResult Next<T>(ref this Random random, ref T itemHandler, in NativeSlice<RandomGroup> groups) where T : struct, IRandomItemHandler
         {
+            var result = RandomResult.Fail;
+
             bool isSingle, isReset = true, isOverload = false;
             int length = groups.Length;
             float value = 0.0f, chance = 0.0f;
@@ -84,15 +86,19 @@ namespace ZG
                     itemHandler.Set(group.startIndex + random.NextInt(0, group.count), 1) :
                     itemHandler.Set(group.startIndex, group.count))
                 {
-                    case RandomItemType.Success:
-                        return true;
-                    case RandomItemType.Pass:
+                    case RandomResult.Success:
+                        return RandomResult.Success;
+                    case RandomResult.Pass:
                         isOverload = !isSingle;
+
+                        result = RandomResult.Pass;
+                        break;
+                    default:
                         break;
                 }
             }
 
-            return false;
+            return result;
         }
     }
 }
