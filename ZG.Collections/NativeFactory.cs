@@ -1321,59 +1321,6 @@ namespace ZG
     }
 
     [NativeContainer]
-    public struct NativeFactoryLite<T> : IDisposable where T : struct
-    {
-        internal UnsafeFactory _value;
-
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal AtomicSafetyHandle m_Safety;
-#endif
-
-        public bool isCreated => _value.isCreated;
-
-        public static implicit operator NativeFactory<T>(NativeFactoryLite<T> value)
-        {
-            NativeFactory<T> result = default;
-
-            result._value = value._value;
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            result.m_Safety = value.m_Safety;
-#endif
-
-            return result;
-        }
-
-        public unsafe NativeFactoryLite(Allocator allocator, bool isParallelWritable = false)
-        {
-            _value = new UnsafeFactory(allocator, isParallelWritable);
-
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_Safety = AtomicSafetyHandle.Create();
-#endif
-        }
-
-        public unsafe JobHandle Dispose(JobHandle inputDeps)
-        {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
-
-            AtomicSafetyHandle.Release(m_Safety);
-#endif
-
-            return _value.Dispose(inputDeps);
-        }
-
-        public unsafe void Dispose()
-        {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.Release(m_Safety);
-#endif
-
-            _value.Dispose();
-        }
-    }
-
-    [NativeContainer]
     public struct NativeFactory<T> : IDisposable where T : struct
     {
         [NativeContainer]
@@ -1385,8 +1332,22 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            private static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
-            
+
+            internal ParallelWriter(ref NativeFactory<T> instance)
+            {
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                m_Safety = instance.m_Safety;
+
+                AtomicSafetyHandle.SetStaticSafetyId(ref m_Safety, StaticSafetyID.Data);
+#endif
+
+                _value = instance._value.parallelWriter;
+            }
+
             public unsafe NativeFactoryObject<T> Create()
             {
                 __CheckWrite();
@@ -1513,8 +1474,7 @@ namespace ZG
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
 
-        [NativeSetClassTypeToNullOnSchedule]
-        private DisposeSentinel __disposeSentinel;
+        private static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<NativeFactory<T>>();
 #endif
 
         public bool isCreated => _value.isCreated;
@@ -1523,18 +1483,7 @@ namespace ZG
         {
             get
             {
-                ParallelWriter parallelWriter;
-
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                parallelWriter.m_Safety = m_Safety;
-
-                AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(parallelWriter.m_Safety);
-                AtomicSafetyHandle.UseSecondaryVersion(ref parallelWriter.m_Safety);
-#endif
-
-                parallelWriter._value = _value.parallelWriter;
-
-                return parallelWriter;
+                return new ParallelWriter(ref this);
             }
         }
 
@@ -1555,12 +1504,14 @@ namespace ZG
             }
         }
 
-        public unsafe NativeFactory(Allocator allocator, bool isParallelWritable = false)
+        public unsafe NativeFactory(AllocatorManager.AllocatorHandle allocator, bool isParallelWritable = false)
         {
             _value = new UnsafeFactory(allocator, isParallelWritable);
-            
+
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Create(out m_Safety, out __disposeSentinel, 0, allocator);
+            m_Safety = default;
+
+            __Init(allocator);
 #endif
         }
 
@@ -1569,14 +1520,18 @@ namespace ZG
             _value = value;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Create(out m_Safety, out __disposeSentinel, 0, (Allocator)value.allocator.Value);
+            m_Safety = default;
+
+            __Init(value.allocator);
 #endif
         }
 
         public unsafe JobHandle Dispose(JobHandle inputDeps)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Dispose(ref m_Safety, ref __disposeSentinel);
+            AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
+
+            AtomicSafetyHandle.Release(m_Safety);
 #endif
 
             return _value.Dispose(inputDeps);
@@ -1585,7 +1540,9 @@ namespace ZG
         public unsafe void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Dispose(ref m_Safety, ref __disposeSentinel);
+            AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
+
+            AtomicSafetyHandle.Release(m_Safety);
 #endif
 
             _value.Dispose();
@@ -1608,6 +1565,21 @@ namespace ZG
         public Enumerator GetEnumerator()
         {
             return new Enumerator(this);
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        private void __Init(in AllocatorManager.AllocatorHandle allocator)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
+
+            if (UnsafeUtility.IsNativeContainerType<T>())
+                AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
+
+            CollectionHelper.SetStaticSafetyId<NativeFactory<T>>(ref m_Safety, ref StaticSafetyID.Data);
+
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+#endif
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

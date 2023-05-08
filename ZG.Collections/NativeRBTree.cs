@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using ZG;
@@ -989,17 +990,19 @@ namespace ZG
     }
 
     [NativeContainer]
-    public struct NativeRBTreeLite<T> : IDisposable, IEnumerable<T>
+    public struct NativeRBTree<T> : IDisposable, IEnumerable<T>
         where T : struct, IComparable<T>
     {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal AtomicSafetyHandle m_Safety;
-#endif
-
         [NativeDisableUnsafePtrRestriction]
         private unsafe UnsafeRBTreeData* __data;
         //private UnsafeRBTreeNodePool.Concurrent<T> __pool;
         private UnsafeFactory __factory;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        internal AtomicSafetyHandle m_Safety;
+
+        private static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<NativeRBTree<T>>();
+#endif
 
         public unsafe bool isCreated
         {
@@ -1074,16 +1077,7 @@ namespace ZG
             }
         }
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal
-#else
-    public
-#endif
-        unsafe NativeRBTreeLite(Allocator allocator
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-        , AtomicSafetyHandle safety
-#endif
-        )
+        public unsafe NativeRBTree(AllocatorManager.AllocatorHandle allocator)
         {
             if (!UnsafeUtility.IsUnmanaged<T>())
                 throw new ArgumentException(string.Format("{0} used in NativeRBTree<{0}> must be Unmanaged", typeof(T)));
@@ -1094,15 +1088,15 @@ namespace ZG
             __factory = new UnsafeFactory(allocator);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_Safety = safety;
-#endif
-        }
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-        public unsafe NativeRBTreeLite(Allocator allocator) : this(allocator, AtomicSafetyHandle.Create())
-        {
-        }
+            if (UnsafeUtility.IsNativeContainerType<T>())
+                AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
+
+            CollectionHelper.SetStaticSafetyId<NativeRBTree<T>>(ref m_Safety, ref StaticSafetyID.Data);
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
+        }
 
         public unsafe NativeRBTreeNode<T> Get(in T value)
         {
@@ -1296,7 +1290,7 @@ namespace ZG
     }
 
     //[NativeContainer]
-    public unsafe struct NativeRBTree<T> : IDisposable, IEnumerable<T>
+    /*public unsafe struct NativeRBTree<T> : IDisposable, IEnumerable<T>
         where T : struct, IComparable<T>
     {
         private NativeRBTreeLite<T> __instance;
@@ -1361,7 +1355,7 @@ namespace ZG
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => __instance.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => __instance.GetEnumerator();
-    }
+    }*/
 
     /*[NativeContainer]
     public unsafe struct NativeRBTree<T> : IDisposable, IEnumerable<T>
