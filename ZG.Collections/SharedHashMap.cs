@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Burst;
 
 namespace ZG
 {
@@ -82,6 +83,8 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<Reader>();
 #endif
 
             public bool isCreated => __values.IsCreated;
@@ -102,6 +105,8 @@ namespace ZG
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = instance.m_Safety;
+
+                CollectionHelper.SetStaticSafetyId<Reader>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __values = instance.__values;
@@ -119,6 +124,13 @@ namespace ZG
                 __CheckRead();
 
                 return __values.TryGetValue(key, out value);
+            }
+
+            public NativeKeyValueArrays<TKey, TValue> GetKeyValueArrays(in AllocatorManager.AllocatorHandle allocator)
+            {
+                __CheckRead();
+
+                return __values.GetKeyValueArrays(allocator);
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -144,7 +156,8 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
-            public AtomicSafetyHandle GetAtomicSafetyHandle() => m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<Writer>();
 #endif
 
             public bool isEmpty
@@ -197,6 +210,8 @@ namespace ZG
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = instance.m_Safety;
+
+                CollectionHelper.SetStaticSafetyId<Writer>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __values = instance.__values;
@@ -318,12 +333,15 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
             public ParallelWriter(ref SharedHashMap<TKey, TValue> instance)
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = instance.m_Safety;
+
+                CollectionHelper.SetStaticSafetyId<ParallelWriter>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __values = instance.__values.AsParallelWriter();
@@ -350,16 +368,16 @@ namespace ZG
             }
         }
 
-        public readonly Allocator Allocator;
+        private UnsafeParallelHashMap<TKey, TValue> __values;
 
         private unsafe LookupJobManager* __lookupJobManager;
 
-        private UnsafeParallelHashMap<TKey, TValue> __values;
+        public readonly AllocatorManager.AllocatorHandle Allocator;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
 
-        public AtomicSafetyHandle GetAtomicSafetyHandle() => m_Safety;
+        internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<SharedHashMap<TKey, TValue>>();
 #endif
 
         public bool isCreated => __values.IsCreated;
@@ -374,16 +392,13 @@ namespace ZG
 
         public ParallelWriter parallelWriter => new ParallelWriter(ref this);
 
-        public SharedHashMap(Allocator allocator)
+        public SharedHashMap(AllocatorManager.AllocatorHandle allocator)
         {
             Allocator = allocator;
 
             unsafe
             {
-                __lookupJobManager = (LookupJobManager*)UnsafeUtility.Malloc(
-                    UnsafeUtility.SizeOf<LookupJobManager>(),
-                    UnsafeUtility.AlignOf<LookupJobManager>(),
-                    allocator);
+                __lookupJobManager = AllocatorManager.Allocate<LookupJobManager>(allocator);
 
                 *__lookupJobManager = default;
             }
@@ -391,21 +406,26 @@ namespace ZG
             __values = new UnsafeParallelHashMap<TKey, TValue>(1, allocator);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_Safety = AtomicSafetyHandle.Create();
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
+
+            if (UnsafeUtility.IsNativeContainerType<TKey>() || UnsafeUtility.IsNativeContainerType<TValue>())
+                AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
+
+            CollectionHelper.SetStaticSafetyId<SharedHashMap<TKey, TValue>>(ref m_Safety, ref StaticSafetyID.Data);
+
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
         }
 
         public void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
-
-            AtomicSafetyHandle.Release(m_Safety);
+            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
 #endif
 
             unsafe
             {
-                UnsafeUtility.Free(__lookupJobManager, Allocator);
+                AllocatorManager.Free(Allocator, __lookupJobManager);
 
                 __lookupJobManager = null;
             }
