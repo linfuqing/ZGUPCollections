@@ -40,12 +40,12 @@ namespace ZG
             }
         }
 
-        public UnsafeListEx(int capacity, Allocator allocator)
+        public UnsafeListEx(int capacity, in AllocatorManager.AllocatorHandle allocator)
         {
             __value = UnsafeList<T>.Create(capacity, allocator);
         }
 
-        public UnsafeListEx(Allocator allocator) : this(1, allocator)
+        public UnsafeListEx(in AllocatorManager.AllocatorHandle allocator) : this(1, allocator)
         {
 
         }

@@ -221,6 +221,13 @@ namespace ZG
                 __values = instance.__values;
             }
 
+            public bool ContainsKey(in TKey key)
+            {
+                CheckRead();
+
+                return __values.ContainsKey(key);
+            }
+
             public bool TryGetFirstValue(in TKey key, out TValue item, out NativeParallelMultiHashMapIterator<TKey> it)
             {
                 CheckRead();
