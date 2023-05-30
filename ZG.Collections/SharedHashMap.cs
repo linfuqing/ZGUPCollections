@@ -270,7 +270,12 @@ namespace ZG
             {
                 __CheckWrite();
 
-                __values.Add(key, value);
+                bool result = __values.TryAdd(key, value);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                if (!result)
+                    throw new InvalidOperationException();
+#endif
             }
 
             public bool Remove(in TKey key)
