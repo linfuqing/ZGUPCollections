@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
@@ -14,6 +15,8 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<Reader>();
 #endif
 
             public unsafe int length
@@ -40,6 +43,8 @@ namespace ZG
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = list.m_Safety;
+                
+                CollectionHelper.SetStaticSafetyId<Reader>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __values = (UnsafeList<T>*)UnsafeUtility.AddressOf(ref list.__data->values);
@@ -63,7 +68,10 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<Writer>();
 #endif
+
             public unsafe int length
             {
                 get
@@ -112,6 +120,8 @@ namespace ZG
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = list.m_Safety;
+
+                CollectionHelper.SetStaticSafetyId<Writer>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __values = (UnsafeList<T>*)UnsafeUtility.AddressOf(ref list.__data->values);
@@ -177,12 +187,16 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
             public unsafe ParallelWriter(ref SharedList<T> list)
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = list.m_Safety;
+
+                CollectionHelper.SetStaticSafetyId<ParallelWriter>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __values = (UnsafeList<T>*)UnsafeUtility.AddressOf(ref list.__data->values);
@@ -227,10 +241,10 @@ namespace ZG
 
         public ParallelWriter parallelWriter => new ParallelWriter(ref this);
 
-        public unsafe SharedList(Allocator allocator)
+        public unsafe SharedList(in AllocatorManager.AllocatorHandle allocator)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_Safety = AtomicSafetyHandle.Create();
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
 #endif
 
             __data = AllocatorManager.Allocate<Data>(allocator);
@@ -241,8 +255,7 @@ namespace ZG
         public unsafe void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
-            AtomicSafetyHandle.Release(m_Safety);
+            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
 #endif
 
             var allocator = __data->values.Allocator;
