@@ -307,9 +307,8 @@ namespace ZG
             ThreadCount = isParallelWritable ? JobsUtility.MaxJobThreadCount : 1;
             __chunks = AllocatorManager.Allocate<Chunks>(allocator, ThreadCount);
 
-            var chunk = new Chunks(allocator);
             for (int i = 0; i < ThreadCount; ++i)
-                __chunks[i] = chunk;
+                __chunks[i] = new Chunks(allocator);
 
             //__mutex = 0;
             __head = CHUNK_HANDLE_NULL;
