@@ -8,6 +8,7 @@ using Unity.Mathematics;
 using Unity.Burst;
 using ZG.Unsafe;
 using Math = ZG.Mathematics.Math;
+using static ZG.NativeKDTreeUtility;
 
 namespace ZG
 {
@@ -20,6 +21,13 @@ namespace ZG
     public interface IKDTreeValue
     {
         float Get(int dimension);
+    }
+
+    public interface IKDTreeCollector<T>
+    {
+        bool Test(in T value);
+
+        bool Add(in T value);
     }
 
     internal struct UnsafeKDTreeObject<T> where T : struct
@@ -101,6 +109,7 @@ namespace ZG
         }
 
         public int dimension => __dimension;
+
 
         public bool isCreated => __target.isCreated;
 
@@ -226,6 +235,61 @@ namespace ZG
         }
 
         public T As<T>() where T : struct  => __target.As<UnsafeKDTreeObject<T>>().value;
+
+        public unsafe bool Query<TValue, TCollector>(
+            int dimensions, 
+            in TValue min, 
+            in TValue max, 
+            ref TCollector collector) 
+            where TValue : unmanaged, IKDTreeValue
+            where TCollector : IKDTreeCollector<TValue>
+        {
+            var value = As<TValue>();
+
+            if (!collector.Test(value))
+                return false;
+
+            bool result = false;
+            float coordinate = value.Get(__dimension);
+            if (min.Get(__dimension).CompareTo(coordinate) < 0)
+            {
+                if (backward != null)
+                    result = backward->Query(dimensions, min, max, ref collector);
+            }
+            else if(max.Get(__dimension).CompareTo(coordinate) > 0)
+            {
+                if(forward != null)
+                    result = forward->Query(dimensions, min, max, ref collector);
+            }
+            else
+            {
+                bool isContains = true;
+                for(int i = 0; i < dimensions; ++i)
+                {
+                    if (i == __dimension)
+                        continue;
+
+                    coordinate = value.Get(i);
+                    if (min.Get(i).CompareTo(coordinate) < 0 || max.Get(i).CompareTo(coordinate) > 0)
+                    {
+                        isContains = false;
+
+                        break;
+                    }
+                }
+
+                if (isContains)
+                    result = collector.Add(value);
+
+                if (backward != null)
+                    result = backward->Query(dimensions, min, max, ref collector) || result;
+
+                if (forward != null)
+                    result = forward->Query(dimensions, min, max, ref collector) || result;
+            }
+
+            return result;
+        }
 
         public unsafe void Dispose() => __target.Dispose();
 
@@ -394,6 +458,8 @@ namespace ZG
 
         public unsafe bool isLeaf => _value->isLeaf;
 
+        public unsafe int dimension => _value->dimension;
+
         public unsafe float coordinate => value.Get(_value->dimension);
 
         public unsafe T value => _value->As<T>();
@@ -501,6 +567,15 @@ namespace ZG
             node._tree = _tree;
 
             return node;
+        }
+
+        public unsafe bool Query<U>(
+            in T min,
+            in T max,
+            ref U collector)
+            where U : IKDTreeCollector<T>
+        {
+            return _value->Query(_tree.Dimensions, min, max, ref collector);
         }
 
         public unsafe void Insert(ref NativeArray<T> values, KDTreeInserMethod method = KDTreeInserMethod.Fast)
@@ -897,6 +972,17 @@ namespace ZG
             return _value.CountOfChildren();
         }
 
+        public bool Query<U>(
+            in T min,
+            in T max,
+            ref U collector)
+            where U : IKDTreeCollector<T>
+        {
+            __CheckRead();
+
+            return _value.Query(min, max, ref collector);
+        }
+
         public void Insert(ref NativeArray<T> values, KDTreeInserMethod method = KDTreeInserMethod.Fast)
         {
             __CheckWrite();
@@ -1118,6 +1204,67 @@ namespace ZG
             Math.Swap(ref values.ElementAt(right), ref values.ElementAt(endIndex));
 
             return left;
+        }
+    }
+
+    public static class NativeKDTreeUtility
+    {
+        private struct ArrayCollector<T> : IKDTreeCollector<T> where T : struct
+        {
+            public int count;
+            public NativeArray<T> values;
+
+            public bool Test(in T value) => count < values.Length;
+
+            public bool Add(in T value)
+            {
+                values[count++] = value;
+
+                return true;
+            }
+        }
+
+        private struct ListCollector<T> : IKDTreeCollector<T> where T : unmanaged
+        {
+            public NativeList<T> values;
+
+            public bool Test(in T value) => true;
+
+            public bool Add(in T value)
+            {
+                values.Add(value);
+
+                return true;
+            }
+        }
+
+        public static int Query<T>(
+            this in NativeKDTreeNode<T> node,
+            in T min,
+            in T max,
+            ref NativeArray<T> values)
+            where T : unmanaged, IKDTreeValue
+        {
+            ArrayCollector<T> collector;
+            collector.count = 0;
+            collector.values = values;
+
+            node.Query(min, max, ref collector);
+
+            return collector.count;
+        }
+
+        public static bool Query<T>(
+            this in NativeKDTreeNode<T> node, 
+            in T min,
+            in T max,
+            ref NativeList<T> values)
+            where T : unmanaged, IKDTreeValue
+        {
+            ListCollector<T> collector;
+            collector.values = values;
+
+            return node.Query(min, max, ref collector);
         }
     }
 }
