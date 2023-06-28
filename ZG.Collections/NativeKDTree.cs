@@ -110,7 +110,6 @@ namespace ZG
 
         public int dimension => __dimension;
 
-
         public bool isCreated => __target.isCreated;
 
         public unsafe bool isLeaf => backward == null && forward == null;
@@ -236,12 +235,13 @@ namespace ZG
 
         public T As<T>() where T : struct  => __target.As<UnsafeKDTreeObject<T>>().value;
 
-        public unsafe bool Query<TValue, TCollector>(
+        public unsafe bool Query<TValue, TBounds, TCollector>(
             int dimensions, 
-            in TValue min, 
-            in TValue max, 
+            in TBounds min, 
+            in TBounds max, 
             ref TCollector collector) 
             where TValue : unmanaged, IKDTreeValue
+            where TBounds : IKDTreeValue
             where TCollector : IKDTreeCollector<TValue>
         {
             var value = As<TValue>();
@@ -254,12 +254,12 @@ namespace ZG
             if (min.Get(__dimension).CompareTo(coordinate) < 0)
             {
                 if (backward != null)
-                    result = backward->Query(dimensions, min, max, ref collector);
+                    result = backward->Query<TValue, TBounds, TCollector>(dimensions, min, max, ref collector);
             }
             else if(max.Get(__dimension).CompareTo(coordinate) > 0)
             {
                 if(forward != null)
-                    result = forward->Query(dimensions, min, max, ref collector);
+                    result = forward->Query<TValue, TBounds, TCollector>(dimensions, min, max, ref collector);
             }
             else
             {
@@ -282,10 +282,10 @@ namespace ZG
                     result = collector.Add(value);
 
                 if (backward != null)
-                    result = backward->Query(dimensions, min, max, ref collector) || result;
+                    result = backward->Query<TValue, TBounds, TCollector>(dimensions, min, max, ref collector) || result;
 
                 if (forward != null)
-                    result = forward->Query(dimensions, min, max, ref collector) || result;
+                    result = forward->Query<TValue, TBounds, TCollector>(dimensions, min, max, ref collector) || result;
             }
 
             return result;
@@ -569,13 +569,14 @@ namespace ZG
             return node;
         }
 
-        public unsafe bool Query<U>(
-            in T min,
-            in T max,
-            ref U collector)
-            where U : IKDTreeCollector<T>
+        public unsafe bool Query<TBounds, TCollector>(
+            in TBounds min,
+            in TBounds max,
+            ref TCollector collector)
+            where TBounds : IKDTreeValue
+            where TCollector : IKDTreeCollector<T>
         {
-            return _value->Query(_tree.Dimensions, min, max, ref collector);
+            return _value->Query<T, TBounds, TCollector>(_tree.Dimensions, min, max, ref collector);
         }
 
         public unsafe void Insert(ref NativeArray<T> values, KDTreeInserMethod method = KDTreeInserMethod.Fast)
@@ -972,11 +973,12 @@ namespace ZG
             return _value.CountOfChildren();
         }
 
-        public bool Query<U>(
-            in T min,
-            in T max,
-            ref U collector)
-            where U : IKDTreeCollector<T>
+        public bool Query<TBounds, TCollector>(
+            in TBounds min,
+            in TBounds max,
+            ref TCollector collector)
+            where TBounds : IKDTreeValue
+            where TCollector : IKDTreeCollector<T>
         {
             __CheckRead();
 
@@ -1238,14 +1240,15 @@ namespace ZG
             }
         }
 
-        public static int Query<T>(
-            this in NativeKDTreeNode<T> node,
-            in T min,
-            in T max,
-            ref NativeArray<T> values)
-            where T : unmanaged, IKDTreeValue
+        public static int Query<TValue, TBounds>(
+            this in NativeKDTreeNode<TValue> node,
+            in TBounds min,
+            in TBounds max,
+            ref NativeArray<TValue> values)
+            where TValue : unmanaged, IKDTreeValue
+            where TBounds : IKDTreeValue
         {
-            ArrayCollector<T> collector;
+            ArrayCollector<TValue> collector;
             collector.count = 0;
             collector.values = values;
 
@@ -1254,14 +1257,15 @@ namespace ZG
             return collector.count;
         }
 
-        public static bool Query<T>(
-            this in NativeKDTreeNode<T> node, 
-            in T min,
-            in T max,
-            ref NativeList<T> values)
-            where T : unmanaged, IKDTreeValue
+        public static bool Query<TValue, TBounds>(
+            this in NativeKDTreeNode<TValue> node, 
+            in TBounds min,
+            in TBounds max,
+            ref NativeList<TValue> values)
+            where TValue : unmanaged, IKDTreeValue
+            where TBounds : IKDTreeValue
         {
-            ListCollector<T> collector;
+            ListCollector<TValue> collector;
             collector.values = values;
 
             return node.Query(min, max, ref collector);
