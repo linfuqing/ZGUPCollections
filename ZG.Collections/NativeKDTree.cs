@@ -630,6 +630,7 @@ namespace ZG
     {
         public readonly int Dimensions;
 
+        [NativeDisableUnsafePtrRestriction]
         internal unsafe UnsafeKDTreeData* _data;
 
         private UnsafeFactory __factroy;

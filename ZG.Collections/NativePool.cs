@@ -140,13 +140,7 @@ namespace ZG
 
         public UnsafePool(int capacity, AllocatorManager.AllocatorHandle allocator)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (capacity < 0)
-                throw new ArgumentOutOfRangeException("length", "Length must be >= 0");
-
-            if (!UnsafeUtility.IsBlittable<T>())
-                throw new ArgumentException(string.Format("{0} used in NativeCustomArray<{0}> must be blittable", typeof(T)));
-#endif
+            __CheckInit(capacity);
 
             _items = new UnsafeList<UnsafePoolItem<T>>(capacity, allocator);
 
@@ -454,12 +448,20 @@ namespace ZG
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        private static void __CheckInit(int capacity)
+        {
+            if (capacity < 0)
+                throw new ArgumentOutOfRangeException("length", "Length must be >= 0");
+
+            /*if (!UnsafeUtility.IsBlittable<T>())
+                throw new ArgumentException(string.Format("{0} used in NativeCustomArray<{0}> must be blittable", typeof(T)));*/
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void __CheckIndexInRange(in UnsafePoolItem<T> item)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (item.index != -1)
                 throw new IndexOutOfRangeException();
-#endif
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
