@@ -41,7 +41,7 @@ namespace ZG
                 AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(safety);
                 m_Safety = safety;
                 AtomicSafetyHandle.UseSecondaryVersion(ref m_Safety);
-                AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+                //AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
 
                 __enumerator = values.GetEnumerator();

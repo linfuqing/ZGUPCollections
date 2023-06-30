@@ -251,12 +251,12 @@ namespace ZG
 
             bool result = false;
             float coordinate = value.Get(__dimension);
-            if (min.Get(__dimension).CompareTo(coordinate) < 0)
+            if (coordinate.CompareTo(min.Get(__dimension)) < 0)
             {
                 if (backward != null)
                     result = backward->Query<TValue, TBounds, TCollector>(dimensions, min, max, ref collector);
             }
-            else if(max.Get(__dimension).CompareTo(coordinate) > 0)
+            else if(coordinate.CompareTo(max.Get(__dimension)) > 0)
             {
                 if(forward != null)
                     result = forward->Query<TValue, TBounds, TCollector>(dimensions, min, max, ref collector);
@@ -270,7 +270,7 @@ namespace ZG
                         continue;
 
                     coordinate = value.Get(i);
-                    if (min.Get(i).CompareTo(coordinate) < 0 || max.Get(i).CompareTo(coordinate) > 0)
+                    if (coordinate.CompareTo(min.Get(i)) < 0 || coordinate.CompareTo(max.Get(i)) > 0)
                     {
                         isContains = false;
 
