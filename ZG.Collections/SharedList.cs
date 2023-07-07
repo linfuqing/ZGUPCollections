@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
@@ -5,10 +6,23 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace ZG
 {
+    public interface INativeListReader<T>
+    {
+        int length
+        {
+            get;
+        }
+
+        T this[int index]
+        {
+            get;
+        }
+    }
+
     public struct SharedList<T> where T : unmanaged
     {
         [NativeContainer]
-        public struct Reader
+        public struct Reader : INativeListReader<T>
         {
             [NativeDisableUnsafePtrRestriction]
             private unsafe UnsafeList<T>* __values;
@@ -61,7 +75,7 @@ namespace ZG
         }
 
         [NativeContainer]
-        public struct Writer
+        public struct Writer : INativeListReader<T>
         {
             [NativeDisableUnsafePtrRestriction]
             private unsafe UnsafeList<T>* __values;
@@ -129,7 +143,16 @@ namespace ZG
 
             public unsafe ref T ElementAt(int index)
             {
-                return ref UnsafeUtility.ArrayElementAsRef<T>(__values->Ptr, index);
+                __CheckWrite();
+
+                return ref __values->ElementAt(index);// ref UnsafeUtility.ArrayElementAsRef<T>(__values->Ptr, index);
+            }
+
+            public unsafe void RemoveAt(int index)
+            {
+                __CheckWrite();
+
+                __values->RemoveAt(index);
             }
 
             public unsafe void Add(in T value)
@@ -283,6 +306,30 @@ namespace ZG
 #endif
 
             return result;
+        }
+    }
+
+    public static class SharedListUtility
+    {
+        public static int IndexOf<TReader, TValue>(this ref TReader reader, in TValue value) 
+            where TReader : struct, INativeListReader<TValue>
+            where TValue : IEquatable<TValue>
+        {
+            int numCollidersToIgrone = reader.length;
+            for (int i = 0; i < numCollidersToIgrone; ++i)
+            {
+                if (reader[i].Equals(value))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        public static bool Contains<TReader, TValue>(this ref TReader reader, in TValue value)
+            where TReader : struct, INativeListReader<TValue>
+            where TValue : IEquatable<TValue>
+        {
+            return IndexOf(ref reader, value) != -1;
         }
     }
 }
