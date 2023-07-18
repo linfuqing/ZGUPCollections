@@ -929,6 +929,8 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<Writer>();
 #endif
 
             public bool isCreated => __value.isCreated;
@@ -947,9 +949,9 @@ namespace ZG
             {
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-                //AtomicSafetyHandle.CheckWriteAndThrow(buffer.m_Safety);
                 m_Safety = buffer.m_Safety;
-                //AtomicSafetyHandle.UseSecondaryVersion(ref m_Safety);
+
+                CollectionHelper.SetStaticSafetyId<Writer>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __value = new UnsafeBuffer.Writer(ref UnsafeUtility.AsRef<UnsafeBuffer>(buffer.__value));
@@ -1022,6 +1024,8 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
+
+            internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
             public bool isCreated => __value.isCreated;
@@ -1032,7 +1036,8 @@ namespace ZG
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 //AtomicSafetyHandle.CheckWriteAndThrow(buffer.m_Safety);
                 m_Safety = buffer.m_Safety;
-                //AtomicSafetyHandle.UseSecondaryVersion(ref m_Safety);
+
+                CollectionHelper.SetStaticSafetyId<ParallelWriter>(ref m_Safety, ref StaticSafetyID.Data);
 #endif
 
                 __value = new UnsafeBuffer.ParallelWriter(ref UnsafeUtility.AsRef<UnsafeBuffer>(buffer.__value));
@@ -1085,8 +1090,6 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
-
-        internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<NativeBuffer>();
 #endif
 
         public unsafe bool isCreated => __value != null;
@@ -1177,11 +1180,6 @@ namespace ZG
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             m_Safety = CollectionHelper.CreateSafetyHandle(allocator.Handle);
-            //AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
-
-            CollectionHelper.SetStaticSafetyId<NativeBuffer>(ref m_Safety, ref s_staticSafetyId.Data);
-
-            //m_SafetyIndexHint = (allocator.Handle).AddSafetyHandle(m_Safety);
 #endif
         }
 
@@ -1328,7 +1326,33 @@ namespace ZG
 
     public static class NativeBufferUtilityEx
     {
+        public static void Serialize<TWriter, TKey, TValue>(ref this TWriter writer, in UnsafeHashMap<TKey, TValue> hashMap)
+            where TWriter : unmanaged, IUnsafeWriter
+            where TKey : unmanaged, IEquatable<TKey>
+            where TValue : unmanaged
+        {
+            using (var keyValueArrays = hashMap.GetKeyValueArrays(Allocator.Temp))
+            {
+                writer.Write(keyValueArrays.Keys.Length);
+                writer.Write(keyValueArrays.Keys);
+                writer.Write(keyValueArrays.Values);
+            }
+        }
+
         public static void Serialize<TWriter, TKey, TValue>(ref this TWriter writer, in NativeParallelHashMap<TKey, TValue> hashMap)
+            where TWriter : unmanaged, IUnsafeWriter
+            where TKey : unmanaged, IEquatable<TKey>
+            where TValue : unmanaged
+        {
+            using (var keyValueArrays = hashMap.GetKeyValueArrays(Allocator.Temp))
+            {
+                writer.Write(keyValueArrays.Keys.Length);
+                writer.Write(keyValueArrays.Keys);
+                writer.Write(keyValueArrays.Values);
+            }
+        }
+
+        public static void Serialize<TWriter, TKey, TValue>(ref this TWriter writer, in UnsafeParallelMultiHashMap<TKey, TValue> hashMap)
             where TWriter : unmanaged, IUnsafeWriter
             where TKey : unmanaged, IEquatable<TKey>
             where TValue : unmanaged
@@ -1354,6 +1378,23 @@ namespace ZG
             }
         }
 
+        public static void Serialize<TWriter, TValue>(ref this TWriter writer, in UnsafePool<TValue> pool)
+            where TWriter : unmanaged, IUnsafeWriter
+            where TValue : unmanaged
+        {
+            int capacity = pool.length;
+            for (int i = 0; i < capacity; ++i)
+            {
+                if (!pool.TryGetValue(i, out var item))
+                    continue;
+
+                writer.Write(i);
+                writer.Write(item);
+            }
+
+            writer.Write(-1);
+        }
+
         public static void Serialize<TWriter, TValue>(ref this TWriter writer, in NativePool<TValue> pool)
             where TWriter : unmanaged, IUnsafeWriter
             where TValue : unmanaged
@@ -1371,7 +1412,45 @@ namespace ZG
             writer.Write(-1);
         }
 
+        public static void Deserialize<TReader, TKey, TValue>(ref this TReader reader, ref UnsafeHashMap<TKey, TValue> hashMap)
+            where TReader : struct, IUnsafeReader
+            where TKey : unmanaged, IEquatable<TKey>
+            where TValue : unmanaged
+        {
+            hashMap.Clear();
+
+            int length = reader.Read<int>();
+            if (length > 0)
+            {
+                hashMap.Capacity = math.max(hashMap.Capacity, length);
+
+                var keys = reader.ReadArray<TKey>(length);
+                var values = reader.ReadArray<TValue>(length);
+                for (int i = 0; i < length; ++i)
+                    hashMap.Add(keys[i], values[i]);
+            }
+        }
+
         public static void Deserialize<TReader, TKey, TValue>(ref this TReader reader, ref NativeParallelHashMap<TKey, TValue> hashMap)
+            where TReader : struct, IUnsafeReader
+            where TKey : unmanaged, IEquatable<TKey>
+            where TValue : unmanaged
+        {
+            hashMap.Clear();
+
+            int length = reader.Read<int>();
+            if (length > 0)
+            {
+                hashMap.Capacity = math.max(hashMap.Capacity, length);
+
+                var keys = reader.ReadArray<TKey>(length);
+                var values = reader.ReadArray<TValue>(length);
+                for (int i = 0; i < length; ++i)
+                    hashMap.Add(keys[i], values[i]);
+            }
+        }
+
+        public static void Deserialize<TReader, TKey, TValue>(ref this TReader reader, ref UnsafeParallelMultiHashMap<TKey, TValue> hashMap)
             where TReader : struct, IUnsafeReader
             where TKey : unmanaged, IEquatable<TKey>
             where TValue : unmanaged
@@ -1409,6 +1488,22 @@ namespace ZG
             }
         }
 
+        public static void Deserialize<TReader, TValue>(ref this TReader reader, ref UnsafePool<TValue> pool)
+            where TReader : unmanaged, IUnsafeReader
+            where TValue : unmanaged
+        {
+            pool.Clear();
+
+            int index;
+            while (true)
+            {
+                index = reader.Read<int>();
+                if (index < 0)
+                    break;
+
+                pool.Insert(index, reader.Read<TValue>());
+            }
+        }
         public static void Deserialize<TReader, TValue>(ref this TReader reader, ref NativePool<TValue> pool)
             where TReader : unmanaged, IUnsafeReader
             where TValue : unmanaged

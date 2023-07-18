@@ -64,6 +64,24 @@ namespace ZG
                 __values = (UnsafeList<T>*)UnsafeUtility.AddressOf(ref list.__data->values);
             }
 
+            public unsafe NativeArray<T> AsArray()
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(m_Safety);
+                AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
+
+                var result = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<T>(__values->Ptr, __values->Length, Allocator.None);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                var arraySafety = m_Safety;
+                AtomicSafetyHandle.UseSecondaryVersion(ref arraySafety);
+                NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref result, arraySafety);
+#endif
+
+                return result;
+            }
+
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             private void __CheckRead()
             {
