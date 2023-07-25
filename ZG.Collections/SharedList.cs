@@ -104,6 +104,21 @@ namespace ZG
             internal static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<Writer>();
 #endif
 
+            public unsafe static implicit operator NativeList<T>(in Writer writer)
+            {
+                NativeList<T> result;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                result.m_Safety = writer.m_Safety;
+
+                result.m_SafetyIndexHint = (writer.__values->Allocator.Handle).AddSafetyHandle(result.m_Safety);
+
+                CollectionHelper.SetStaticSafetyId<NativeList<T>>(ref result.m_Safety, ref NativeList <T>.s_staticSafetyId.Data);
+#endif
+                result.m_ListData = writer.__values;
+
+                return result;
+            }
+
             public unsafe int length
             {
                 get

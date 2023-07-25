@@ -1024,6 +1024,8 @@ namespace ZG
             }
         }
 
+        public AllocatorManager.AllocatorHandle allocator => __factory.allocator;
+
         public unsafe NativeRBTreeNode<T> head
         {
             get
