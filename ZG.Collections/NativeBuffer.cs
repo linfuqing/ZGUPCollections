@@ -305,6 +305,8 @@ namespace ZG
 
             public unsafe int position => __buffer->__value.Length;
 
+            public unsafe int length => __buffer->length;
+
             public unsafe void* Read(int length)
             {
                 var reader = __AsReader();
@@ -848,6 +850,16 @@ namespace ZG
                     __CheckRead();
 
                     return __value.position;
+                }
+            }
+
+            public int length
+            {
+                get
+                {
+                    __CheckRead();
+
+                    return __value.length;
                 }
             }
 

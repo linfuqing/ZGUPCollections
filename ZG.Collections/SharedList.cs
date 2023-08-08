@@ -188,6 +188,13 @@ namespace ZG
                 __values->RemoveAt(index);
             }
 
+            public unsafe void RemoveRange(int index, int count)
+            {
+                __CheckWrite();
+
+                __values->RemoveRange(index, count);
+            }
+
             public unsafe void Add(in T value)
             {
                 __CheckWriteAndBumpSecondaryVersion();

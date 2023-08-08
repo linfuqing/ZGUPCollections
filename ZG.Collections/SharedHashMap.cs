@@ -112,6 +112,8 @@ namespace ZG
                 __values = instance.__values;
             }
 
+            public int Count() => __values.Count();
+
             public bool ContainsKey(in TKey key)
             {
                 __CheckRead();

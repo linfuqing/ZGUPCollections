@@ -43,6 +43,34 @@ namespace ZG
     
     public static class RandomUtility
     {
+        public static uint Hash(long hash)
+        {
+            return (uint)hash ^ (uint)(hash >> 32);
+        }
+
+        public static uint Hash(double time)
+        {
+            return Hash(Unity.Mathematics.math.aslong(time));
+        }
+
+        public static Random Create(double time)
+        {
+            return new Random(Hash(time));
+        }
+
+        public static int CountOf(in NativeSlice<RandomGroup> groups)
+        {
+            int result = 0, length = groups.Length;
+            RandomGroup group;
+            for (int i = 0; i < length; ++i)
+            {
+                group = groups[i];
+                result = (group.flag & RandomFlag.Selection) == RandomFlag.Selection ? 1 : group.count;
+            }
+
+            return result;
+        }
+
         public static RandomResult Next<T>(ref this Random random, ref T itemHandler, in NativeSlice<RandomGroup> groups) where T : struct, IRandomItemHandler
         {
             var result = RandomResult.Fail;

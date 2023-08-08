@@ -160,11 +160,18 @@ namespace ZG
                 return enumerator;
             }
 
-            public NativeArray<TKey> GetKeys(Allocator allocator)
+            public NativeArray<TKey> GetKeys(in AllocatorManager.AllocatorHandle allocator)
             {
                 CheckRead();
 
                 return __values.GetKeyArray(allocator);
+            }
+
+            public NativeKeyValueArrays<TKey, TValue> GetKeyValueArrays(in AllocatorManager.AllocatorHandle allocator)
+            {
+                CheckRead();
+
+                return __values.GetKeyValueArrays(allocator);
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
