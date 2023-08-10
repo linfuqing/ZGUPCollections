@@ -65,7 +65,7 @@ namespace ZG
             for (int i = 0; i < length; ++i)
             {
                 group = groups[i];
-                result = (group.flag & RandomFlag.Selection) == RandomFlag.Selection ? 1 : group.count;
+                result += (group.flag & RandomFlag.Selection) == RandomFlag.Selection ? 1 : group.count;
             }
 
             return result;
