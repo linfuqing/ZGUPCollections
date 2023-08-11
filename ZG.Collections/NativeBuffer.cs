@@ -272,6 +272,11 @@ namespace ZG
             }
         }
 
+        public static explicit operator UnsafeBlock(in UnsafeBlock<T> value)
+        {
+            return value.__value;
+        }
+
         public UnsafeBlock(in UnsafeBlock value)
         {
             __value = value;
@@ -1289,7 +1294,7 @@ namespace ZG
             return result;
         }
 
-        public static UnsafeBlock<TValue> WriteBlock<TWriter, TValue>(ref this TWriter writer, TValue value)
+        public static UnsafeBlock<TValue> WriteBlock<TWriter, TValue>(ref this TWriter writer, in TValue value)
             where TWriter : struct, INativeWriter
             where TValue : struct
         {
