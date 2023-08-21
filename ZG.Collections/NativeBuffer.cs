@@ -1330,6 +1330,13 @@ namespace ZG
             where TWriter : struct, IUnsafeWriter
             where TValue : struct => Write(ref writer, values.Slice());
 
+        public static unsafe void Write<TWriter, TValue>(ref this TWriter writer, in NativeArray<TValue>.ReadOnly values)
+            where TWriter : struct, IUnsafeWriter
+            where TValue : struct
+        {
+            writer.Write(values.GetUnsafeReadOnlyPtr(), values.Length * UnsafeUtility.SizeOf<TValue>());
+        }
+
         public static unsafe void Write<TWriter, TValue>(ref this TWriter writer, TValue[] values)
             where TWriter : struct, IUnsafeWriter
             where TValue : unmanaged
