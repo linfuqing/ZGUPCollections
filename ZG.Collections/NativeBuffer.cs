@@ -173,7 +173,7 @@ namespace ZG
 
         public Writer writer => new Writer(this);
 
-        internal unsafe UnsafeBlock(UnsafeAppendBuffer* buffer, int posiiton, int length)
+        public unsafe UnsafeBlock(UnsafeAppendBuffer* buffer, int posiiton, int length)
         {
             __buffer = buffer;
             __position = posiiton;

@@ -143,6 +143,23 @@ namespace ZG
         }
     }
 
+    public struct DynamicBufferWriteOnlyWrapper<T> : IWriteOnlyListWrapper<T, DynamicBuffer<T>> where T : unmanaged
+    {
+        public int GetCount(in DynamicBuffer<T> list) => list.Length;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetCount(ref DynamicBuffer<T> list, int value)
+        {
+            list.ResizeUninitialized(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set(ref DynamicBuffer<T> list, T value, int index)
+        {
+            list[index] = value;
+        }
+    }
+
     public struct NativeSliceWrapper<T> : IReadOnlyListWrapper<T, NativeSlice<T>> where T : struct
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
