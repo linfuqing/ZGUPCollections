@@ -65,6 +65,11 @@ namespace ZG
 
                     __CheckWrite();
 
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                    if (_values.TryGetValue(handle, out var oldValue))
+                        throw new InvalidOperationException($"{handle} : {oldValue} To {value}");
+#endif
+
                     _values[handle] = value;
 
                     //UnityEngine.Debug.LogError($"Write {handle} : {value} To {this}");
