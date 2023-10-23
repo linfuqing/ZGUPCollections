@@ -8,6 +8,7 @@ using Unity.Jobs;
 using Unity.Entities;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Math = ZG.Mathematics.Math;
 
 namespace ZG
 {
@@ -454,6 +455,13 @@ namespace ZG
             __CheckIndex(index, instance.Length);
 
             return Interlocked.Add(ref UnsafeUtility.ArrayElementAsRef<int>(instance.GetUnsafePtr(), index), value);
+        }
+
+        public static unsafe float Add(this ref NativeArray<float> instance, int index, float value)
+        {
+            __CheckIndex(index, instance.Length);
+
+            return Math.InterlockedAdd(ref UnsafeUtility.ArrayElementAsRef<float>(instance.GetUnsafePtr(), index), value);
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

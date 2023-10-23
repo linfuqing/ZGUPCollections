@@ -65,10 +65,10 @@ namespace ZG
 
                     __CheckWrite();
 
-/*#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
                     if (_values.TryGetValue(handle, out var oldValue))
                         throw new InvalidOperationException($"{handle} : {oldValue} To {value}");
-#endif*/
+#endif
 
                     _values[handle] = value;
 

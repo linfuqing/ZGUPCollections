@@ -1,7 +1,7 @@
 {
   "name": "cn.com.zerogame.unitypackages.collections",
   "displayName": "ZGUP Collections",
-  "version": "2.2.28",
+  "version": "2.2.29",
   "unity": "2022.2",
   "unityRelease": "0f1",
   "dependencies": {
