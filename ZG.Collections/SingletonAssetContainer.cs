@@ -238,6 +238,8 @@ namespace ZG
 
         private static readonly SharedStatic<IntPtr> Instance = SharedStatic<IntPtr>.GetOrCreate<SingletonAssetContainer<T>>();
 
+        public unsafe bool isCreated => __data != null;
+
         public unsafe T this[in SingletonAssetContainerHandle handle]
         {
             get
