@@ -1237,19 +1237,19 @@ namespace ZG
         }
 
         [NativeDisableUnsafePtrRestriction]
-        private NativeFactoryEnumerable* __enumerable;
+        internal NativeFactoryEnumerable* _enumerable;
 
-        public bool isCreated => __enumerable != null;
+        public bool isCreated => _enumerable != null;
 
-        public readonly int length => __enumerable->ThreadCount;
+        public readonly int length => _enumerable->ThreadCount;
 
-        public int innerloopBatchCount => __enumerable->innerloopBatchCount;
+        public int innerloopBatchCount => _enumerable->innerloopBatchCount;
 
-        public AllocatorManager.AllocatorHandle allocator => __enumerable->allocator;
+        public AllocatorManager.AllocatorHandle allocator => _enumerable->allocator;
 
-        public ref NativeFactoryEnumerable enumerable => ref UnsafeUtility.AsRef<NativeFactoryEnumerable>(__enumerable);
+        public ref NativeFactoryEnumerable enumerable => ref UnsafeUtility.AsRef<NativeFactoryEnumerable>(_enumerable);
 
-        public ParallelWriter parallelWriter => new ParallelWriter(__enumerable);
+        public ParallelWriter parallelWriter => new ParallelWriter(_enumerable);
 
         public Thread this[int index]
         {
@@ -1260,36 +1260,36 @@ namespace ZG
                     throw new IndexOutOfRangeException();
 #endif
 
-                return new Thread(index, __enumerable);
+                return new Thread(index, _enumerable);
             }
         }
 
         public UnsafeFactory(in AllocatorManager.AllocatorHandle allocator, bool isParallelWritable = false)
         {
-            __enumerable = AllocatorManager.Allocate<NativeFactoryEnumerable>(allocator);
+            _enumerable = AllocatorManager.Allocate<NativeFactoryEnumerable>(allocator);
 
-            *__enumerable = new NativeFactoryEnumerable(allocator, isParallelWritable);
+            *_enumerable = new NativeFactoryEnumerable(allocator, isParallelWritable);
         }
 
         public int Count()
         {
-            return __enumerable->Count();
+            return _enumerable->Count();
         }
 
         public int CountOf(int index)
         {
-            return __enumerable->CountOf(index);
+            return _enumerable->CountOf(index);
         }
 
         public void Dispose()
         {
             var allocator = this.allocator;
 
-            __enumerable->Dispose();
+            _enumerable->Dispose();
 
             DisposeJob disposeJob;
             disposeJob.allocator = allocator;
-            disposeJob.enumerable = __enumerable;
+            disposeJob.enumerable = _enumerable;
             disposeJob.Execute();
         }
 
@@ -1297,25 +1297,25 @@ namespace ZG
         {
             var allocator = this.allocator;
 
-            var jobHandle = __enumerable->Dispose(inputDeps);
+            var jobHandle = _enumerable->Dispose(inputDeps);
 
             DisposeJob disposeJob;
             disposeJob.allocator = allocator;
-            disposeJob.enumerable = __enumerable;
+            disposeJob.enumerable = _enumerable;
             jobHandle = disposeJob.Schedule(jobHandle);
 
-            __enumerable = null;
+            _enumerable = null;
 
             return jobHandle;
         }
 
-        public JobHandle Clear(in JobHandle inputDeps) => __enumerable->Clear(inputDeps);
+        public JobHandle Clear(in JobHandle inputDeps) => _enumerable->Clear(inputDeps);
 
-        public void Clear() => __enumerable->Clear();
+        public void Clear() => _enumerable->Clear();
 
         public NativeFactoryObject Create<T>()
         {
-            return __enumerable->Create<T>(0);
+            return _enumerable->Create<T>(0);
         }
     }
 
@@ -1589,6 +1589,90 @@ namespace ZG
 #endif
         }
 
+    }
+
+    public struct SharedFactory<T> : IDisposable where T : struct
+    {
+        public struct Data
+        {
+            public NativeFactoryEnumerable enumerable;
+
+            public LookupJobManager lookupJobManager;
+        }
+
+        //[NativeDisableUnsafePtrRestriction]
+        private unsafe Data* __data;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        internal AtomicSafetyHandle m_Safety;
+
+        private static readonly SharedStatic<int> StaticSafetyID = SharedStatic<int>.GetOrCreate<SharedFactory<T>>();
+#endif
+
+        public unsafe bool isCreated => __data != null;
+
+        public unsafe NativeFactory<T> value
+        {
+            get
+            {
+                NativeFactory<T> result;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(m_Safety);
+
+                result.m_Safety = m_Safety;
+
+                AtomicSafetyHandle.UseSecondaryVersion(ref result.m_Safety);
+#endif
+
+                result._value._enumerable = (NativeFactoryEnumerable*)UnsafeUtility.AddressOf(ref __data->enumerable);
+
+                return result;
+            }
+        }
+
+        public unsafe ref LookupJobManager lookupJobManager => ref __data->lookupJobManager;
+
+        public unsafe SharedFactory(AllocatorManager.AllocatorHandle allocator, bool isParallelWritable = false)
+        {
+            __data = AllocatorManager.Allocate<Data>(allocator);
+            __data->enumerable = new NativeFactoryEnumerable(allocator, isParallelWritable);
+            __data->lookupJobManager = default;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            m_Safety = default;
+
+            __Init(allocator);
+#endif
+        }
+
+        public unsafe void Dispose()
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
+#endif
+
+            var allocator = __data->enumerable.allocator;
+            __data->enumerable.Dispose();
+            AllocatorManager.Free(allocator, __data);
+
+            __data = null;
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        private void __Init(in AllocatorManager.AllocatorHandle allocator)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
+
+            if (UnsafeUtility.IsNativeContainerType<T>())
+                AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
+
+            CollectionHelper.SetStaticSafetyId<SharedFactory<T>>(ref m_Safety, ref StaticSafetyID.Data);
+
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+#endif
+        }
     }
 
     public static class NativeFactoryUtility

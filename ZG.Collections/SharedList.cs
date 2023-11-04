@@ -347,6 +347,22 @@ namespace ZG
 
             return result;
         }
+
+        public unsafe NativeList<T> AsList()
+        {
+            NativeList<T> result;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            result.m_Safety = m_Safety;
+
+            result.m_SafetyIndexHint = (__data->values.Allocator.Handle).AddSafetyHandle(result.m_Safety);
+
+            CollectionHelper.SetStaticSafetyId<NativeList<T>>(ref result.m_Safety, ref NativeList<T>.s_staticSafetyId.Data);
+#endif
+            result.m_ListData = (UnsafeList<T>*)UnsafeUtility.AddressOf(ref __data->values);
+
+            return result;
+        }
+
     }
 
     public static class SharedListUtility
