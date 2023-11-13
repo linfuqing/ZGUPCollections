@@ -704,9 +704,9 @@ namespace ZG
                 if (_instance == null)
                     return false;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+/*#if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
-#endif
+#endif*/
                 return _instance->target.isVail && _instance->target.version == _version;
             }
         }
@@ -1079,7 +1079,7 @@ namespace ZG
             }
         }
 
-        public unsafe NativeRBTree(AllocatorManager.AllocatorHandle allocator)
+        public unsafe NativeRBTree(in AllocatorManager.AllocatorHandle allocator)
         {
             if (!UnsafeUtility.IsUnmanaged<T>())
                 throw new ArgumentException(string.Format("{0} used in NativeRBTree<{0}> must be Unmanaged", typeof(T)));
@@ -1096,7 +1096,7 @@ namespace ZG
                 AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
 
             CollectionHelper.SetStaticSafetyId<NativeRBTree<T>>(ref m_Safety, ref StaticSafetyID.Data);
-            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+            //AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
         }
 
@@ -1167,12 +1167,12 @@ namespace ZG
 
         public unsafe bool Remove(in NativeRBTreeNode node)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
-#endif
             if (!node.isVail)
                 return false;
 
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
             UnsafeRBTreeNode* head = __data->head;
             if (head == node._instance)
                 head = node._instance->next;
@@ -1255,9 +1255,7 @@ namespace ZG
         public unsafe void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
-
-            AtomicSafetyHandle.Release(m_Safety);
+            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
 #endif
 
             /*UnsafeRBTreeNode* node = __data->info.root;

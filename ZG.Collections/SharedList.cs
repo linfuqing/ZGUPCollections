@@ -272,6 +272,13 @@ namespace ZG
                 __values->AsParallelWriter().AddNoResize(value);
             }
 
+            public unsafe void AddRangeNoResize(in NativeArray<T> values)
+            {
+                __CheckWrite();
+
+                __values->AsParallelWriter().AddRangeNoResize(values.GetUnsafeReadOnlyPtr(), values.Length);
+            }
+
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             private void __CheckWrite()
             {
