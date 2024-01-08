@@ -1,5 +1,6 @@
 ﻿using System;
 using Unity.Collections;
+using math = Unity.Mathematics.math;
 using Random = Unity.Mathematics.Random;
 
 namespace ZG
@@ -50,12 +51,13 @@ namespace ZG
 
         public static uint Hash(double time)
         {
-            return Hash(Unity.Mathematics.math.aslong(time));
+            return Hash(math.aslong(time));
         }
 
         public static Random Create(double time)
         {
-            return new Random(Hash(time));
+            uint hash = Hash(time);
+            return new Random(hash == 0 ? 1 : hash);
         }
 
         public static int CountOf(in NativeSlice<RandomGroup> groups)

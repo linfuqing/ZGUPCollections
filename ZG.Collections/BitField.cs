@@ -297,9 +297,9 @@ namespace ZG
             return Equals((BitField<T>)obj);
         }
 
-        public override int GetHashCode()
+        public unsafe override int GetHashCode()
         {
-            return value.GetHashCode();
+            return (int)math.hash(UnsafeUtility.AddressOf(ref value), UnsafeUtility.SizeOf<T>());
         }
 
         private unsafe ref byte __Get(ref int index)

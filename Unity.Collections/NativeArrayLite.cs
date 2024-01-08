@@ -6,14 +6,14 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace ZG
 {
-	public struct NativeArrayLite<T> where T : struct
+	public struct NativeArrayLite<T> where T : unmanaged
 	{
 		[NativeDisableUnsafePtrRestriction]
 		private unsafe void* __ptr;
 
 		private int __length;
 
-		private Allocator __allocator;
+		private AllocatorManager.AllocatorHandle __allocator;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 		internal AtomicSafetyHandle m_Safety;
@@ -25,7 +25,7 @@ namespace ZG
 
 		public int Length => __length;
 
-		public Allocator allocator => __allocator;
+		public readonly AllocatorManager.AllocatorHandle allocator => __allocator;
 
 		public unsafe T this[int index]
 		{
@@ -45,7 +45,7 @@ namespace ZG
 			}
 		}
 
-		public unsafe NativeArrayLite(int length, Allocator allocator, NativeArrayOptions options = NativeArrayOptions.ClearMemory)
+		public unsafe NativeArrayLite(int length, in AllocatorManager.AllocatorHandle allocator, NativeArrayOptions options = NativeArrayOptions.ClearMemory)
 		{
 			__Allocate(length, allocator, out this);
 			if ((options & NativeArrayOptions.ClearMemory) == NativeArrayOptions.ClearMemory)
@@ -68,7 +68,7 @@ namespace ZG
 				AtomicSafetyHandle.Release(m_Safety);
 #endif
 
-				UnsafeUtility.Free(__ptr, __allocator);
+				AllocatorManager.Free(__allocator, __ptr);
 
 				__allocator = Allocator.Invalid;
 			}
@@ -88,13 +88,11 @@ namespace ZG
 			return result;
 		}
 
-		private static unsafe void __Allocate(int length, Allocator allocator, out NativeArrayLite<T> array)
+		private static unsafe void __Allocate(int length, in AllocatorManager.AllocatorHandle allocator, out NativeArrayLite<T> array)
 		{
-			long num = (long)UnsafeUtility.SizeOf<T>() * (long)length;
-			__CheckAllocateArguments(length, allocator, num);
 			array = default(NativeArrayLite<T>);
 			array.__allocator = allocator;
-			array.__ptr = UnsafeUtility.Malloc(num, UnsafeUtility.AlignOf<T>(), allocator);
+			array.__ptr = AllocatorManager.Allocate<T>(allocator, length);
 			array.__length = length;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -145,18 +143,6 @@ namespace ZG
 		private void __FailOutOfRangeError(int index)
 		{
 			throw new IndexOutOfRangeException($"Index {index} is out of range of '{__length}' Length.");
-		}
-
-		[Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-		private static void __CheckAllocateArguments(int length, Allocator allocator, long totalSize)
-		{
-			if (allocator <= Allocator.None)
-				throw new ArgumentException("Allocator must be Temp, TempJob or Persistent", "allocator");
-
-			if (length < 0)
-				throw new ArgumentOutOfRangeException("length", "Length must be >= 0");
-
-			__IsUnmanagedAndThrow();
 		}
 
 		[BurstDiscard]
