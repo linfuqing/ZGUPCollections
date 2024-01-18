@@ -28,7 +28,11 @@ namespace ZG
 
     public interface INativeReader : IUnsafeReader
     {
-        int position { get; }
+        bool isVail { get; }
+        
+        int position { get; set; }
+        
+        int length { get; }
 
         UnsafeBlock ReadBlock(int length);
     }
@@ -52,7 +56,14 @@ namespace ZG
 
             public bool isVail => position < __block.__length;
 
-            public int position => __block.__position + __offset;
+            public int position
+            {
+                get => __block.__position + __offset;
+
+                set => __offset = value - __block.__position;
+            }
+
+            public int length => __block.__length;
 
             public Reader(in UnsafeBlock block)
             {
@@ -609,21 +620,16 @@ namespace ZG
 
             public bool isCreated => __value.isCreated;
 
-            public bool isVail
-            {
-                get
-                {
-                    return __value.isVail;
-                }
-            }
+            public bool isVail => __value.isVail;
 
             public int position
             {
-                get
-                {
-                    return __value.position;
-                }
+                get => __value.position;
+
+                set => __value.position = value;
             }
+
+            public int length => __value.length;
 
             public unsafe Reader(ref UnsafeBufferEx buffer)
             {
