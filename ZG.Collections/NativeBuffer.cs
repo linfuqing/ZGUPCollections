@@ -308,7 +308,12 @@ namespace ZG
 
             public unsafe bool isVail => __buffer->__value.Length < __buffer->__length;
 
-            public unsafe int position => __buffer->__value.Length;
+            public unsafe int position
+            {
+                get => __buffer->__value.Length;
+
+                set => __buffer->__value.Length = value;
+            }
 
             public unsafe int length => __buffer->length;
 
@@ -855,6 +860,13 @@ namespace ZG
                     __CheckRead();
 
                     return __value.position;
+                }
+
+                set
+                {
+                    __CheckWrite();
+
+                    __value.position = value;
                 }
             }
 
