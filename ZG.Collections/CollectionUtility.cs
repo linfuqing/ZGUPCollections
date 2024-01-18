@@ -509,6 +509,11 @@ namespace ZG.Unsafe
             return shadow;
         }
 
+        public static unsafe NativeArray<T> ToNativeArray<T>(ref this T instance) where T : unmanaged
+        {
+            return ToNativeArray<T>(UnsafeUtility.AddressOf(ref instance), 1);
+        }
+        
         public static unsafe UnsafeList<T> ToUnsafeListReadOnly<T>(this in NativeArray<T> instance) where T : unmanaged
         {
             return new UnsafeList<T>((T*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(instance), instance.Length);
