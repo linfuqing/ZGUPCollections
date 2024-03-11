@@ -188,11 +188,48 @@ namespace ZG
                 __values->RemoveAt(index);
             }
 
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
+            unsafe void CheckIndexCount(int index, int count)
+            {
+                if (count < 0)
+                {
+                    throw new ArgumentOutOfRangeException($"Value for count {count} must be positive.");
+                }
+
+                if (index < 0)
+                {
+                    throw new IndexOutOfRangeException($"Value for index {index} must be positive.");
+                }
+
+                if (index >= __values->m_length)
+                {
+                    throw new IndexOutOfRangeException($"Value for index {index} is out of bounds.");
+                }
+
+                if (index + count > __values->m_length)
+                {
+                    throw new ArgumentOutOfRangeException($"Value for count {count} is out of bounds.");
+                }
+            }
+            
             public unsafe void RemoveRange(int index, int count)
             {
                 __CheckWrite();
 
-                __values->RemoveRange(index, count);
+                CheckIndexCount(index, count);
+
+                index = CollectionHelper.AssumePositive(index);
+                count = CollectionHelper.AssumePositive(count);
+
+                if (count > 0)
+                {
+                    int copyFrom = Unity.Mathematics.math.min(index + count, __values->m_length);
+                    void* dst = __values->Ptr + index;
+                    void* src = __values->Ptr + copyFrom;
+                    UnsafeUtility.MemMove(dst, src, (__values->m_length - copyFrom) * UnsafeUtility.SizeOf<T>());
+                    __values->m_length -= count;
+                }
+                //__values->RemoveRange(index, count);
             }
 
             public unsafe void Add(in T value)
