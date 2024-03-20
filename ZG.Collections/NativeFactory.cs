@@ -982,7 +982,7 @@ namespace ZG
         public T value;
     }
 
-    public unsafe struct NativeFactoryObject
+    public unsafe struct NativeFactoryObject : IEquatable<NativeFactoryObject>
     {
         [NativeDisableUnsafePtrRestriction]
         private NativeFactoryEnumerable* __enumerable;
@@ -1026,6 +1026,17 @@ namespace ZG
         public void Dispose()
         {
             __enumerable->Free(__chunkHandle, __entityIndex, __version);
+        }
+
+        public override int GetHashCode()
+        {
+            return (int)__enumerable ^ __chunkHandle ^ __entityIndex;
+        }
+
+        public readonly bool Equals(NativeFactoryObject other)
+        {
+            return __enumerable == other.__enumerable && __chunkHandle == other.__chunkHandle &&
+                   __entityIndex == other.__entityIndex && __version == other.__version;
         }
 
         public ref T As<T>() where T : struct
@@ -1269,6 +1280,11 @@ namespace ZG
             _enumerable = AllocatorManager.Allocate<NativeFactoryEnumerable>(allocator);
 
             *_enumerable = new NativeFactoryEnumerable(allocator, isParallelWritable);
+        }
+
+        public bool IsBelongFrom(in NativeFactoryObject target)
+        {
+            return _enumerable == UnsafeUtility.AddressOf(ref target.enumerable);
         }
 
         public int Count()
