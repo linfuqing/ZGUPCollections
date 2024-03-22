@@ -141,6 +141,8 @@ namespace ZG
     internal struct NativeQuadTreeItem
     {
         public readonly int Flag;
+        public readonly int Layer;
+        
         public readonly float3 Min;
         public readonly float3 Max;
 
@@ -150,8 +152,14 @@ namespace ZG
 
         public unsafe NativeQuadTreeItem* next;
 
-        public unsafe NativeQuadTreeItem(int flag, in float3 min, in float3 max, in NativeFactoryObject target)
+        public unsafe NativeQuadTreeItem(
+            int layer, 
+            int flag, 
+            in float3 min, 
+            in float3 max, 
+            in NativeFactoryObject target)
         {
+            Layer = layer;
             Flag = flag;
             Min = min;
             Max = max;
@@ -363,6 +371,7 @@ namespace ZG
         public T value;
 
         public static ref NativeQuadTreeObject<T> Create(
+            int layer, 
             int flag, 
             in float3 min, 
             in float3 max, 
@@ -371,7 +380,7 @@ namespace ZG
             in NativeFactoryObject target)
         {
             ref var instance = ref target.As<NativeQuadTreeObject<T>>();
-            instance.item = new NativeQuadTreeItem(flag, min, max, target);
+            instance.item = new NativeQuadTreeItem(layer, flag, min, max, target);
             instance.nodeInfo = nodeInfo;
             instance.value = value;
             
@@ -384,6 +393,8 @@ namespace ZG
         private NativeFactoryObject __target;
 
         public bool isCreated => __target.isCreated;
+
+        public int layer => target.item.Layer;
 
         internal ref T value => ref target.value;
 
@@ -411,11 +422,12 @@ namespace ZG
             return __target.Equals(other.__target);
         }
 
-        public readonly void Get(out T value, out float3 min, out float3 max)
+        public readonly void Get(out T value, out float3 min, out float3 max, out int layer)
         {
             value = target.value;
             min = target.item.Min;
             max = target.item.Max;
+            layer = target.item.Layer;
         }
     }
 
@@ -441,6 +453,8 @@ namespace ZG
         {
             public readonly int Depth;
             
+            public readonly int Layers;
+
             public readonly float3 Min;
 
             public readonly float3 Max;
@@ -453,6 +467,7 @@ namespace ZG
             public unsafe ParallelWriter(ref UnsafeQuadTree<T> quadTree)
             {
                 Depth = quadTree.Depth;
+                Layers = quadTree.Layers;
                 Min = quadTree.Min;
                 Max = quadTree.Max;
                 __factory = quadTree.__factory.parallelWriter;
@@ -465,6 +480,10 @@ namespace ZG
                 in float3 max,
                 in T value)
             {
+                UnityEngine.Assertions.Assert.IsTrue(layer < Layers);
+                if (layer >= Layers)
+                    return default;
+                
                 Convert(
                     Min, 
                     Max, 
@@ -480,11 +499,15 @@ namespace ZG
                 var nodeInfo = __FindTreeNodeInfo(targetMin.x, targetMin.y, targetMax.x, targetMax.y, Depth);
 
                 var node = __GetNodeFromLevelXY(__levelNodes, nodeInfo, layer, Depth);
+                
+                UnityEngine.Assertions.Assert.IsFalse(node == null);
+
                 if (node == null)
                     return default;
 
                 var origin = __factory.Create<NativeQuadTreeObject<T>>();
                 ref var target = ref NativeQuadTreeObject<T>.Create(
+                    layer, 
                     flag, 
                     min,
                     max, 
@@ -673,6 +696,10 @@ namespace ZG
             in float3 max, 
             in T value)
         {
+            UnityEngine.Assertions.Assert.IsTrue(layer < Layers);
+            if (layer >= Layers)
+                return default;
+
             Convert(Min, Max, min, max, out var targetMin, out var targetMax, out var flag);
 
             targetMin = math.max(byte.MinValue, targetMin);
@@ -681,11 +708,14 @@ namespace ZG
             var nodeInfo = __FindTreeNodeInfo(targetMin.x, targetMin.y, targetMax.x, targetMax.y, Depth);
 
             var node = __GetNodeFromLevelXY(nodeInfo, layer);
+            
+            UnityEngine.Assertions.Assert.IsFalse(node == null);
             if (node == null)
                 return default;
-            
+
             var origin = __factory.Create<NativeQuadTreeObject<T>>();
             ref var target = ref NativeQuadTreeObject<T>.Create(
+                layer, 
                 flag, 
                 min,
                 max, 
@@ -701,10 +731,10 @@ namespace ZG
             return new NativeQuadTreeItem<T>(origin);
         }
 
-        public unsafe bool Remove(int layer, in NativeQuadTreeItem<T> value)
+        public unsafe bool Remove(in NativeQuadTreeItem<T> value)
         {
             ref var target = ref value.target;
-            var node = __GetNodeFromLevelXY(layer, target.nodeInfo.level, target.nodeInfo.x, target.nodeInfo.y);
+            var node = __GetNodeFromLevelXY(target.item.Layer, target.nodeInfo.level, target.nodeInfo.x, target.nodeInfo.y);
             if (node == null || node->items == IntPtr.Zero)
                 return false;
             
@@ -747,6 +777,10 @@ namespace ZG
             int layer)
             where TFilter : INativeQuadTreeFilter<T>
         {
+            UnityEngine.Assertions.Assert.IsTrue(layer < Layers);
+            if (layer >= Layers)
+                return false;
+
             Convert(Min, Max, min, max, out var targetMin, out var targetMax, out int flag);
 
             targetMin = math.max(byte.MinValue, targetMin);
@@ -800,7 +834,7 @@ namespace ZG
             if (layerMask == 0)
                 return false;
 
-            int from = Math.GetLowerstBit(layerMask) - 1, to = Math.GetHighestBit(layerMask) - 1;
+            int from = Math.GetLowerstBit(layerMask) - 1, to = math.min(Math.GetHighestBit(layerMask), Layers) - 1;
             for (int i = from; i <= to; ++i)
             {
                 if ((layerMask & (1 << i)) == 0)
@@ -1060,13 +1094,13 @@ namespace ZG
             return __instance.Add(layer, min, max, value);
         }
 
-        public bool Remove(int layer, in NativeQuadTreeItem<T> item)
+        public bool Remove(in NativeQuadTreeItem<T> item)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
 #endif
             
-            return __instance.Remove(layer, item);
+            return __instance.Remove(item);
         }
         
         public bool Search<TFilter>(
