@@ -1011,6 +1011,18 @@ namespace ZG
                 return __data != null;
             }
         }
+        
+        public unsafe bool isEmpty
+        {
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
+
+                return __data->count < 1;
+            }
+        }
 
         public unsafe int count
         {
