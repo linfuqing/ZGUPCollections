@@ -188,6 +188,13 @@ namespace ZG
                 __values->RemoveAt(index);
             }
 
+            public unsafe void RemoveAtSwapBack(int index)
+            {
+                __CheckWrite();
+
+                __values->RemoveAtSwapBack(index);
+            }
+
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             unsafe void CheckIndexCount(int index, int count)
             {

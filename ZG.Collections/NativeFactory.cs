@@ -388,7 +388,7 @@ namespace ZG
             return count;
         }
 
-        public unsafe void Free(int chunkHandle, int entityIndex, int version)
+        public void Free(int chunkHandle, int entityIndex, int version)
         {
             FromChunkHandle(chunkHandle, out int threadIndex, out int chunkIndex);
 
@@ -408,28 +408,44 @@ namespace ZG
             chunks.Unlock();
         }
 
-        public unsafe bool TryPopUnsafe<T>(out T value) where T : struct
+        public unsafe bool TryPop<T>(out T value) where T : struct
         {
-            if (__head != CHUNK_HANDLE_NULL)
+            var chunkHandle = __head;
+            if (chunkHandle != CHUNK_HANDLE_NULL)
             {
-                var chunk = __GetChunk(__head);
+                FromChunkHandle(chunkHandle, out int threadIndex, out int chunkIndex);
 
-                var result = chunk->PopUnsafe(out int index);
-                if ((result & NativeFactoryChunk.FreeResult.Empty) == NativeFactoryChunk.FreeResult.Empty)
+                ref var chunks = ref _GetChunks(threadIndex);
+
+                chunks.Lock();
+
+                ref var chunk = ref chunks[chunkIndex];
+
+                var result = chunk.Pop(out int index);
+                if ((result & NativeFactoryChunk.FreeResult.OK) == NativeFactoryChunk.FreeResult.OK)
                 {
-                    __head = chunk->next;
+                    value = chunk.As<T>(index).value;
 
-                    chunk->next = CHUNK_HANDLE_NULL;
-                    chunk->status = NativeFactoryChunk.STATUS_DETACH;
+                    if ((result & NativeFactoryChunk.FreeResult.Empty) == NativeFactoryChunk.FreeResult.Empty)
+                        __Detach(chunkHandle, ref chunk);
+
+                    chunks.Unlock();
+
+                    return true;
                 }
 
-                UnityEngine.Assertions.Assert.AreEqual(NativeFactoryChunk.FreeResult.OK, result & NativeFactoryChunk.FreeResult.OK);
-
-                value = chunk->As<T>(index).value;
-
-                return true;
+                chunks.Unlock();
             }
-
+#if DEBUG
+            for (int i = 0; i < ThreadCount; ++i)
+            {
+                ref var chunksToCheck = ref __chunks[i];
+                
+                for(int j = 0; j < chunksToCheck.count; ++j)
+                    UnityEngine.Assertions.Assert.AreEqual(0, chunksToCheck[j].count);
+            }
+#endif
+            
             value = default;
 
             return false;
@@ -642,7 +658,7 @@ namespace ZG
             Interlocked.Decrement(ref __mutex);
         }*/
 
-        private unsafe void __Attach(int handle, ref NativeFactoryChunk chunk)
+        private void __Attach(int handle, ref NativeFactoryChunk chunk)
         {
             UnityEngine.Assertions.Assert.AreNotEqual(NativeFactoryChunk.STATUS_ATTACHING, chunk.status);
 
@@ -855,9 +871,17 @@ namespace ZG
         public int stride;
         public unsafe void* values;
 
-        public unsafe void SetVersion(int index, int value)
+        /*public unsafe void SetVersion(int index, int value)
         {
             UnsafeUtility.WriteArrayElementWithStride(values, index, stride, value);
+        }*/
+        
+        public unsafe int IncrementVersion(int index)
+        {
+            return Interlocked.Increment(
+                ref UnsafeUtility.AsRef<int>(
+                    UnsafeUtility.AddressOf(ref
+                        UnsafeUtility.ArrayElementAsRef<byte>(values, index * stride))));
         }
 
         public unsafe int GetVersion(int index)
@@ -893,8 +917,11 @@ namespace ZG
             return result;
         }
 
-        public FreeResult Free(int index)
+        public FreeResult Free(int index, int version)
         {
+            if (GetVersion(index) != version)
+                return FreeResult.OutOfVersion;
+
             int origin;
             do
             {
@@ -903,42 +930,35 @@ namespace ZG
                     return FreeResult.OutOfIndex;
 
             } while (Interlocked.CompareExchange(ref flag, origin & ~(1 << index), origin) != origin);
-
+            
+            IncrementVersion(index);
+            
             if (Interlocked.Decrement(ref count) > 0)
                 return FreeResult.OK;
 
             return FreeResult.OK | FreeResult.Empty;
         }
 
-        public FreeResult Free(int index, int version)
+        public FreeResult Pop(out int index)
         {
-            if (GetVersion(index) != version)
-                return FreeResult.OutOfVersion;
-
-            var result = Free(index);
-            if ((result & FreeResult.OK) == FreeResult.OK)
-                SetVersion(index, version + 1);
-
-            return result;
-        }
-
-        public FreeResult PopUnsafe(out int index)
-        {
-            if (flag != 0)
+            int origin;
+            do
             {
-                index = Math.GetHighestBit(flag) - 1;// 31 - math.lzcnt(flag);
+                origin = flag;
+                
+                index = Math.GetHighestBit(origin) - 1;
+                
+                if (origin == 0)
+                    return FreeResult.OutOfIndex;
+                
+            } while (Interlocked.CompareExchange(ref flag, origin & ~(1 << index), origin) != origin);
+            
+            IncrementVersion(index);
+            
+            if (Interlocked.Decrement(ref count) > 0)
+                return FreeResult.OK;
 
-                flag &= ~(1 << index);
-
-                if (--count > 0)
-                    return FreeResult.OK;
-
-                return FreeResult.OK | FreeResult.Empty;
-            }
-
-            index = -1;
-
-            return FreeResult.OutOfIndex;
+            return FreeResult.OK | FreeResult.Empty;
         }
 
         public unsafe ref NativeFactoryEntity<T> As<T>(int index) where T : struct
@@ -953,7 +973,7 @@ namespace ZG
             return ((byte*)values) + index * stride + UnsafeUtility.SizeOf<int>();
         }
 
-        internal unsafe bool _SetStatus(int destination, int source, int comparand)
+        internal bool _SetStatus(int destination, int source, int comparand)
         {
             int value;
             do
