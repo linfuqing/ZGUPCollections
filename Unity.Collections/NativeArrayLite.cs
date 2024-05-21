@@ -58,11 +58,11 @@ namespace ZG
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 			if (__ptr == null)
 				throw new ObjectDisposedException("The NativeArray is already disposed.");
-			if (__allocator == Allocator.Invalid)
+			if (__allocator.ToAllocator == Allocator.Invalid)
 				throw new InvalidOperationException("The NativeArray can not be Disposed because it was not allocated with a valid allocator.");
 #endif
 
-			if (__allocator > Allocator.None)
+			if (__allocator.ToAllocator > Allocator.None)
 			{
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 				AtomicSafetyHandle.Release(m_Safety);
