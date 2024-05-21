@@ -19,6 +19,31 @@ namespace ZG
 
     public struct UnsafePool<T> where T : unmanaged
     {
+        public struct Enumerator
+        {
+            private int __index;
+            private unsafe UnsafePool<T>* __values;
+
+            public unsafe KeyValuePair<int, T> Current => new KeyValuePair<int,T>(__index, (*__values)[__index]);
+
+            internal unsafe Enumerator(ref UnsafePool<T> pool)
+            {
+                __index = -1;
+                __values = (UnsafePool<T>*)UnsafeUtility.AddressOf(ref pool);
+            }
+
+            public unsafe bool MoveNext()
+            {
+                while (__index + 1 < __values->length)
+                {
+                    if (__values->ContainsKey(++__index))
+                        return true;
+                }
+
+                return false;
+            }
+        }
+
         internal UnsafeList<UnsafePoolItem<T>> _items;
         private UnsafeList<int> __indices;
 
@@ -332,6 +357,8 @@ namespace ZG
             return true;
         }
 
+        public Enumerator GetEnumerator() => new Enumerator(ref this);
+
         /// <summary>
         /// Copies the entire <see cref="Pool{T}"/> to a compatible one-dimensional array, starting at the specified index of the target array.
         /// </summary>
@@ -473,7 +500,6 @@ namespace ZG
             if ((uint)value < (uint)length)
                 throw new ArgumentOutOfRangeException($"Value {value} is out of range in Pool of '{length}' Length.");
         }
-
     }
 
     /// <summary>
@@ -510,19 +536,6 @@ namespace ZG
         [NativeContainer]
         public struct ReadOnlySlice : ISlice, IEnumerable<T>
         {
-            //[NativeDisableUnsafePtrRestriction]
-            //internal unsafe void* __buffer;
-
-            //internal int m_Length;
-
-            /*#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                        internal int m_MinIndex;
-
-                        internal int m_MaxIndex;
-
-                        internal AtomicSafetyHandle m_Safety;
-            #endif*/
-
             [NativeDisableUnsafePtrRestriction]
             internal unsafe UnsafePool<T>* __values;
 
@@ -599,41 +612,6 @@ namespace ZG
             {
                 return GetEnumerator();
             }
-
-/*#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            private unsafe void __CheckReadIndex(int index)
-            {
-                if (index < m_MinIndex || index > m_MaxIndex)
-                    __FailOutOfRangeError(index);
-
-                AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
-
-                if (!Contains(index))
-                    throw new IndexOutOfRangeException($"Index {index} is out of range of indices.");
-            }
-
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            private unsafe void __CheckWriteIndex(int index)
-            {
-                if (index < m_MinIndex || index > m_MaxIndex)
-                    __FailOutOfRangeError(index);
-
-                AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
-
-                if (UnsafeUtility.ReadArrayElement<DataItem>(__buffer, index).index != -1)
-                    throw new IndexOutOfRangeException($"Index {index} is out of range of indices.");
-            }
-            
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            private void __FailOutOfRangeError(int index)
-            {
-                if (index < m_Length && (m_MinIndex != 0 || m_MaxIndex != m_Length - 1))
-                    throw new IndexOutOfRangeException($"Index {index} is out of restricted IJobParallelFor range [{m_MinIndex}...{m_MaxIndex}] in ReadWriteBuffer.\nReadWriteBuffers are restricted to only read & write the element at the job index. You can use double buffering strategies to avoid race conditions due to reading & writing in parallel to the same elements from a job.");
-
-                throw new IndexOutOfRangeException($"Index {index} is out of range of '{m_Length}' Length.");
-            }
-#endif*/
         }
 
         [NativeContainer]

@@ -398,7 +398,7 @@ namespace ZG
 
         internal ref T value => ref target.value;
 
-        internal ref NativeQuadTreeObject<T> target => ref __target.As<NativeQuadTreeObject<T>>();
+        internal readonly ref NativeQuadTreeObject<T> target => ref __target.As<NativeQuadTreeObject<T>>();
 
         internal ref NativeFactoryEnumerable enumerable => ref __target.enumerable;
 
@@ -424,6 +424,8 @@ namespace ZG
 
         public readonly void Get(out T value, out float3 min, out float3 max, out int layer)
         {
+            ref readonly var target = ref this.target;
+            
             value = target.value;
             min = target.item.Min;
             max = target.item.Max;

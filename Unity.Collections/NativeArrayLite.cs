@@ -9,7 +9,7 @@ namespace ZG
 	public struct NativeArrayLite<T> where T : unmanaged
 	{
 		[NativeDisableUnsafePtrRestriction]
-		private unsafe void* __ptr;
+		private unsafe T* __ptr;
 
 		private int __length;
 
@@ -68,7 +68,7 @@ namespace ZG
 				AtomicSafetyHandle.Release(m_Safety);
 #endif
 
-				AllocatorManager.Free(__allocator, __ptr);
+				AllocatorManager.Free(__allocator, __ptr, __length);
 
 				__allocator = Allocator.Invalid;
 			}
