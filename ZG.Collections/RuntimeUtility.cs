@@ -68,7 +68,7 @@ namespace ZG
             }
         }
         
-#if UNITY_EDITOR
+/*#if UNITY_EDITOR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         public static void Init()
         {
@@ -84,6 +84,6 @@ namespace ZG
                 }
             }
         }
-#endif
+#endif*/
     }
 }
