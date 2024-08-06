@@ -774,7 +774,7 @@ namespace ZG
             internal AtomicSafetyHandle m_Safety;
 #endif
 
-            public unsafe NativeKDTreeNode<T> Current
+            public NativeKDTreeNode<T> Current
             {
                 get
                 {
@@ -789,7 +789,7 @@ namespace ZG
                 }
             }
 
-            public unsafe Enumerator(NativeKDTreeNode<T> node)
+            public Enumerator(NativeKDTreeNode<T> node)
             {
                 __value = node._value.GetEnumerator();
 
@@ -798,19 +798,19 @@ namespace ZG
 #endif
             }
 
-            public unsafe bool MoveNext()
+            public bool MoveNext()
             {
                 __CheckRead();
 
                 return __value.MoveNext();
             }
 
-            public unsafe void Reset()
+            public void Reset()
             {
                 __value.Reset();
             }
 
-            public unsafe void Dispose()
+            public void Dispose()
             {
                 __value.Dispose();
             }
@@ -838,7 +838,7 @@ namespace ZG
 
         public T value => _value.value;
 
-        public unsafe NativeKDTreeNode<T> parent
+        public NativeKDTreeNode<T> parent
         {
             get
             {
@@ -855,7 +855,7 @@ namespace ZG
             }
         }
 
-        public unsafe NativeKDTreeNode<T> backward
+        public NativeKDTreeNode<T> backward
         {
             get
             {
@@ -872,7 +872,7 @@ namespace ZG
             }
         }
 
-        public unsafe NativeKDTreeNode<T> forward
+        public NativeKDTreeNode<T> forward
         {
             get
             {
@@ -923,16 +923,16 @@ namespace ZG
             }
         }
 
-        public unsafe override int GetHashCode() => _value.GetHashCode();
+        public override int GetHashCode() => _value.GetHashCode();
 
-        public void Dispsoe()
+        public void Dispose()
         {
             __CheckWrite();
 
             _value.Dispose();
         }
 
-        public unsafe NativeKDTreeNode<T> GetBackwardLeaf(ref int maxDepth)
+        public NativeKDTreeNode<T> GetBackwardLeaf(ref int maxDepth)
         {
             __CheckRead();
 
@@ -946,7 +946,7 @@ namespace ZG
             return node;
         }
 
-        public unsafe NativeKDTreeNode<T> GetForwardLeaf(int maxDepth)
+        public NativeKDTreeNode<T> GetForwardLeaf(int maxDepth)
         {
             __CheckRead();
 
