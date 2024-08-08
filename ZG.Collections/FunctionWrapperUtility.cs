@@ -237,6 +237,11 @@ namespace ZG
                 __managedFunctionWrapper.Data.Invoke(argumentsPtr, size);
             }
 
+            public static unsafe void Execute(ref T wrapper)
+            {
+                Execute(UnsafeUtility.AddressOf(ref wrapper), UnsafeUtility.SizeOf<T>());
+            }
+
             private static unsafe void __Invoke(void* argumentsPtr, int size)
             {
                 ref var function = ref ArgumentsFromPtr(argumentsPtr, size);
@@ -269,6 +274,11 @@ namespace ZG
             ManagedFunctionWrapper.Initialize();
             
             ManagedWrapper<T>.Init();
+        }
+
+        public static void Run<T>(this ref T functionWrapper) where T : unmanaged, IFunctionWrapper
+        {
+            ManagedWrapper<T>.Execute(ref functionWrapper);
         }
 
         /*[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
