@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
@@ -98,18 +99,12 @@ namespace ZG
             }
         }
 
-        public unsafe static U Create<U>(NativeArray<T> values) where U : SharedNativeArray<T>
+        public static unsafe U Create<U>(NativeArray<T> values) where U : SharedNativeArray<T>
         {
             U result = CreateInstance<U>();
             result.length = values.Length;
 
-            long size = UnsafeUtility.SizeOf<T>() * result.length;
-            result.__values = UnsafeUtility.Malloc(
-                size,
-                UnsafeUtility.AlignOf<T>(),
-                Allocator.Persistent);
-
-            UnsafeUtility.MemCpy(result.__values, NativeArrayUnsafeUtility.GetUnsafePtr(values), size);
+            result.__values = SharedNativeArrayUtility.Clone(values);
 
             return result;
         }
@@ -145,5 +140,24 @@ namespace ZG
         {
             return GetEnumerator();
         }
+    }
+
+    [BurstCompile]
+    public static class SharedNativeArrayUtility
+    {
+        [BurstCompile]
+        public static unsafe void* Clone<T>(NativeArray<T> values) where T : struct
+        {
+            long size = UnsafeUtility.SizeOf<T>() * values.Length;
+            var result = UnsafeUtility.Malloc(
+                size,
+                UnsafeUtility.AlignOf<T>(),
+                Allocator.Persistent);
+
+            UnsafeUtility.MemCpy(result, NativeArrayUnsafeUtility.GetUnsafePtr(values), size);
+
+            return result;
+        }
+
     }
 }

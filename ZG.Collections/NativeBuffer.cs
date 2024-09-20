@@ -184,10 +184,10 @@ namespace ZG
 
         public Writer writer => new Writer(this);
 
-        public unsafe UnsafeBlock(UnsafeAppendBuffer* buffer, int posiiton, int length)
+        public unsafe UnsafeBlock(UnsafeAppendBuffer* buffer, int position, int length)
         {
             __buffer = buffer;
-            __position = posiiton;
+            __position = position;
             __length = length;
         }
 
@@ -200,14 +200,23 @@ namespace ZG
             return ref UnsafeUtility.AsRef<T>(ptr);
         }
 
+        public unsafe UnsafeBlock SubBlock(int length, int offset = 0)
+        {
+            _CheckRange<byte>(offset, length, size);
+
+            var position = __position + offset;
+
+            return new UnsafeBlock(__buffer, position, __position + length);
+        }
+
         public unsafe NativeArray<T> AsArray<T>(int byteOffset = 0, int length = -1) where T : struct
         {
             void* ptr = GetRangePtr(out int size);
 
-            _CheckRange<T>(byteOffset, length, size);
-
             if (length < 0)
                 length = (size - byteOffset) / UnsafeUtility.SizeOf<T>();
+
+            _CheckRange<T>(byteOffset, length, size);
 
             var result = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<T>(
                 (byte*)ptr + byteOffset, 

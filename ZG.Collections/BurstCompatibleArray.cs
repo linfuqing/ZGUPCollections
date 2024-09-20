@@ -193,20 +193,13 @@ namespace ZG
 
         public const int LENGTH = 128;
 
-        public unsafe T this[int index]
+        public unsafe ref T this[int index]
         {
             get
             {
                 __CheckIndex(index);
 
-                return UnsafeUtility.ReadArrayElement<T>(UnsafeUtility.AddressOf(ref this), index);
-            }
-
-            set
-            {
-                __CheckIndex(index);
-
-                UnsafeUtility.WriteArrayElement(UnsafeUtility.AddressOf(ref this), index, value);
+                return ref UnsafeUtility.ArrayElementAsRef<T>(UnsafeUtility.AddressOf(ref this), index);
             }
         }
 
