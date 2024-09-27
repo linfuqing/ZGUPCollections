@@ -159,6 +159,23 @@ namespace ZG
             }
         }
         
+        public struct Writer
+        {
+            private FunctionFactory __factory;
+            private SharedList<FunctionFactory.Function>.Writer __functions;
+
+            public Writer(ref SharedFunctionFactory factory)
+            {
+                __factory = factory.__instance;
+                __functions = factory.__functions.writer;
+            }
+            
+            public void Invoke<T>(ref T value) where T : unmanaged, IFunctionWrapper
+            {
+                __functions.Add(__factory.Create(ref value));
+            }
+        }
+
         public struct ParallelWriter
         {
             private FunctionFactory.ParallelWriter __factory;
@@ -181,6 +198,8 @@ namespace ZG
         private SharedList<FunctionFactory.Function> __functions;
 
         public ref LookupJobManager lookupJobManager => ref __functions.lookupJobManager;
+
+        public Writer writer => new Writer(ref this);
 
         public SharedFunctionFactory(in AllocatorManager.AllocatorHandle allocator)
         {
