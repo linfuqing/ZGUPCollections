@@ -856,7 +856,7 @@ namespace ZG
 
             int nodeCount = GetNodeCount(Depth), 
                 from = Math.GetLowerstBit(layerMask) - 1, 
-                to = Math.GetHighestBit(layerMask) - 1;
+                to = math.min(Math.GetHighestBit(layerMask), Layers) - 1;
             var node = __levelNodes + from * nodeCount;
             for (int i = from; i <= to; ++i)
             {
