@@ -878,7 +878,7 @@ namespace ZG
                 temp = item;
                 item = temp->next;
                 
-                item->Target.Dispose();
+                temp->Target.Dispose();
 
                 //__itemPool.Free(temp);
             }
